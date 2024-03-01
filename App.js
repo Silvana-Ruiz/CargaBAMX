@@ -1,16 +1,16 @@
-import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from "@react-navigation/native";
 import Tabs from './components/Tabs';
-
+import { PaperProvider } from 'react-native-paper';
 export default function App() {
-  const Tab = createBottomTabNavigator();
 
   return (
-    <NavigationContainer style={styles.container}>
-      <Tabs />
-    </NavigationContainer>
+    <PaperProvider>
+      <NavigationContainer style={styles.container}>
+        <Tabs />
+      </NavigationContainer>
+    </PaperProvider>
+
 
   );
 }

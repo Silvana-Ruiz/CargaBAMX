@@ -1,11 +1,13 @@
 import React from 'react';
 import { SafeAreaView, View, Text } from 'react-native';
+import Formulario from '../components/Formulario';
 
 const Registro = () => {
   return (
     <SafeAreaView>
       <View>
-        <Text>Registro Screen</Text>
+        <Text>Registrar Carga</Text>
+        <Formulario />
       </View>
     </SafeAreaView>
 
