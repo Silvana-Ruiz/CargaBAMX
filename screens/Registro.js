@@ -1,5 +1,5 @@
 import React from 'react';
-import { SafeAreaView, View, Text } from 'react-native';
+import { SafeAreaView, View, Text, Stylesheet } from 'react-native';
 import Formulario from '../components/Formulario';
 
 const Registro = () => {
@@ -16,3 +16,7 @@ const Registro = () => {
 };
 
 export default Registro;
+
+
+
+
