@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useState } from "react";
+import { Button, StyleSheet, Alert, Text, TextInput, View, KeyboardAvoidingView, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { StatusBar } from "expo-status-bar";
 import { Controller, useForm } from 'react-hook-form';
-import { Button, StyleSheet, Text, TextInput, View, TouchableWithoutFeedback, Keyboard, KeyboardAvoidingView, SafeAreaView, Stylesheet, ScrollView } from 'react-native';
+
 import DropdownComponent from './Dropdown';
 import Radio from './Radio';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Camera from './Camera';
+
+import * as ImagePicker from "expo-image-picker";
+
+import { uploadToFirebase } from '../firebaseConfig';
+
 
 
 export default function App() {
-  const { register, control, handleSubmit } = useForm({
+  const [permission, requestPermission] = ImagePicker.useCameraPermissions();
+  const [imageUri, setImageUri] = useState('');
+  const [fileName, setFileName] = useState('');
+
+
+  const { control, handleSubmit } = useForm({
     defaultValues: {
       fecha: new Date(),
       conductor: '',
@@ -19,7 +33,7 @@ export default function App() {
       hayDesperdicio: false,
       porcentajeDesperdicio: '',
       razonDesperdicio: '',
-      urlFoto: ''
+      uriFoto: ''
     }
   });
 
@@ -68,12 +82,36 @@ export default function App() {
     { label: 'No Comestible', value: 'no comestible' },
   ];
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
+    // Indicar que el uri de la imagen en el state es el 
+    // de la foto que se subirá
+    data.uriFoto = imageUri;
     console.log(data);
+    try {
+      const uploadResp = await uploadToFirebase(imageUri, fileName, (v) =>
+        console.log(v)
+      );
+      console.log(uploadResp);
+    } catch (e) {
+      Alert.alert("Error" + e.message);
+    }
   };
   const allowOnlyNumber = (value) => {
     return value.replace(/[^0-9]/g, '');
   };
+
+
+
+  // Verificar si la aplicación tiene acceso a la cámara del celular
+  if (permission?.status !== ImagePicker.PermissionStatus.GRANTED) {
+    return (
+      <View >
+        <Text>Permission Not Granted - {permission?.status}</Text>
+        <StatusBar style="auto" />
+        <Button title="Solicitar permiso" onPress={requestPermission}></Button>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView>
@@ -205,7 +243,22 @@ export default function App() {
               )}
             />
           </View>
-
+          <View>
+            <Text>Cantidad Carga</Text>
+            <Controller
+              control={control}
+              name={'cantidadCarga'}
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput
+                  placeholder='Cantidad carga'
+                  value={value}
+                  onChangeText={(text) => onChange(allowOnlyNumber(text))}
+                  onBlur={onBlur}
+                  style={{ paddingBottom: 100 }}
+                />
+              )}
+            />
+          </View>
           <View>
             <Text>¿Hay Desperdicio?</Text>
             <Controller
@@ -257,33 +310,13 @@ export default function App() {
             />
           </View>
 
-          <View>
-            <Text>Cantidad Carga</Text>
-            <Controller
-              control={control}
-              name={'cantidadCarga'}
-              render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput
-                  placeholder='Cantidad carga'
-                  value={value}
-                  onChangeText={(text) => onChange(allowOnlyNumber(text))}
-                  onBlur={onBlur}
-                />
-              )}
-            />
-          </View>
-
-
+          <Camera
+            setImageUri={setImageUri}
+            setFileName={setFileName}
+          />
 
         </KeyboardAvoidingView>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
-
-
-const styles = StyleSheet.create({
-  cant: {
-    height: 10
-  }
-});
