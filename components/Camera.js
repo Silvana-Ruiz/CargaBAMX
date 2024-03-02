@@ -26,7 +26,7 @@ const Camera = ({ setImageUri, setFileName }) => {
   };
 
   return (
-    <View style={{ paddingBottom: 350 }}>
+    <View style={{ paddingBottom: 100 }}>
       <Text>Tomar fotografía</Text>
       <TouchableOpacity onPress={takePhoto}  >
         <FontAwesome5 name="camera" size={24} color="#EBB641" />

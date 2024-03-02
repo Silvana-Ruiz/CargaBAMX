@@ -3,9 +3,9 @@ import {
   getStorage,
   ref,
   uploadBytesResumable,
-  getDownloadURL,
-  listAll,
+  getDownloadURL
 } from "firebase/storage";
+import { getFirestore, getDocs, collection } from "firebase/firestore";
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -14,6 +14,7 @@ const firebaseConfig = {
   appId: process.env.APP_ID,
   projectId: process.env.PROJECT_ID,
   authDomain: process.env.AUTH_DOMAIN,
+  messaginSenderId: process.env.MESSAGING_SENDER_ID
 };
 
 console.log(firebaseConfig);
@@ -22,7 +23,8 @@ if (getApps().length === 0) {
   initializeApp(firebaseConfig);
 }
 const fbApp = getApp();
-const fbStorage = getStorage();
+const fbStorage = getStorage(fbApp);
+const db = getFirestore(fbApp);
 
 // const listFiles = async () => {
 //   const storage = getStorage();
@@ -67,5 +69,22 @@ const uploadToFirebase = async (uri, name, onProgress) => {
     );
   });
 };
+// Función para obtener los catálogos para las opciones 
+// del componente dropwdown.
+const getCatalogoDropdown = async (nombreCatalogo) => {
+  const querySnapshot = await getDocs(collection(db, nombreCatalogo));
+  
+  // Crear estructura de label y value para integrar con dropdown
+  const catalogo = querySnapshot.docs.map((doc) => {
+    const { nombre } = doc.data();
+    const registro = {
+      label: nombre,
+      value: nombre
+    }
+    return registro;
+  });
 
-export { fbApp, fbStorage, uploadToFirebase };
+  return catalogo;
+}
+
+export { fbApp, db, fbStorage, uploadToFirebase, getCatalogoDropdown };

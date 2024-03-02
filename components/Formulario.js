@@ -1,6 +1,6 @@
 import React from 'react';
-import { useState } from "react";
-import { Button, StyleSheet, Alert, Text, TextInput, View, KeyboardAvoidingView, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from "react";
+import { Button, Alert, Text, TextInput, View, KeyboardAvoidingView, SafeAreaView, ScrollView, Image } from 'react-native';
 import { StatusBar } from "expo-status-bar";
 import { Controller, useForm } from 'react-hook-form';
 
@@ -11,17 +11,40 @@ import Camera from './Camera';
 
 import * as ImagePicker from "expo-image-picker";
 
-import { uploadToFirebase } from '../firebaseConfig';
-
+import { uploadToFirebase, db, getCatalogoDropdown } from '../firebaseConfig';
+import { addDoc, collection } from "firebase/firestore";
+import { FontAwesome } from '@expo/vector-icons';
 
 
 export default function App() {
   const [permission, requestPermission] = ImagePicker.useCameraPermissions();
   const [imageUri, setImageUri] = useState('');
   const [fileName, setFileName] = useState('');
+  const [conductores, setConductores] = useState([]);
+  const [donantes, setDonantes] = useState([]);
+  const [razonesDesperdicio, setRazonesDesperdicio] = useState([]);
+  const [donativos, setDonativos] = useState([]);
 
 
-  const { control, handleSubmit } = useForm({
+
+  // Obtener opciones de dropdown al consultar catálogos de base de datps
+  useEffect(async () => {
+    try {
+      const arrConductores = await getCatalogoDropdown('conductor');
+      setConductores(arrConductores);
+
+      const arrDonantes = await getCatalogoDropdown('donante');
+      setDonantes(arrDonantes);
+
+      const arrRazonesDesp = await getCatalogoDropdown('razonDesperdicio');
+      setRazonesDesperdicio(arrRazonesDesp);
+    } catch (error) {
+      console.log(error);
+    }
+
+  }, []);
+
+  const { control, handleSubmit, watch } = useForm({
     defaultValues: {
       fecha: new Date(),
       conductor: '',
@@ -37,23 +60,38 @@ export default function App() {
     }
   });
 
-  const dataConductor = [
-    { label: 'Emilio López', value: 'emilio lópez' },
-    { label: 'Juan Perez', value: 'juan perez' },
-    { label: 'Liliana Ruiz', value: 'liliana ruiz' },
-  ];
-  const dataDonante = [
-    { label: 'Walmart', value: 'walmart' },
-    { label: 'Costco', value: 'cotsco' },
-    { label: 'Campo Agrícola Perez', value: 'campo agrícola perez' },
-  ];
-  const dataDonativo = [
-    { label: 'Fruta', value: 'fruta' },
-    { label: 'Verdura', value: 'verdura' },
-    { label: 'Lácteos', value: 'lácteos' },
-    { label: 'Mariscos', value: 'mariscos' },
-    { label: 'Carne', value: 'carne' },
-  ];
+  // Observar cada vez que el valor de tipo de carga cambie
+  // mediante React Hook Form watch
+  const watchTipoCarga = watch("tipoCarga", 'Perecedero');
+
+  // Diccionario que relaciona nombre de tipo de carga
+  // con nombre de la colección del catálogo correspondiente
+  // en la base de datos
+  const dicTiposDonativos = {
+    'Perecedero': 'perecedero',
+    'No Perecedero': 'noPerecedero',
+    'No Comestible': 'noComestible',
+  };
+
+  // Función que dependiendo del valor del tipo de carga,
+  // obtiene el cátalogo de los donativos correspondientes.
+  const obtenerCatalogo = async (watchTipoCarga) => {
+    try {
+      console.log('dicTiposDonativos[watchTipoCarga]', dicTiposDonativos[watchTipoCarga]);
+      const arrDonativo = await getCatalogoDropdown(dicTiposDonativos[watchTipoCarga]);
+      setDonativos(arrDonativo);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  // Cuando cambie el valor del tipo de carga, se llama
+  // a la función obtenerCatalogo para actualizar el listado de opciones.
+  useEffect(() => {
+    obtenerCatalogo(watchTipoCarga);
+  }, [watchTipoCarga]);
+
+
   const dataPorcentajeDesperdicio = [
     { label: '10%', value: '10' },
     { label: '20%', value: '20' },
@@ -66,21 +104,55 @@ export default function App() {
     { label: '90%', value: '90' },
     { label: '100%', value: '100' },
   ];
-  const dataRazonDesperdicio = [
-    { label: 'Moho', value: 'moho' },
-    { label: 'Empaque roto', value: 'empaque roto' },
-    { label: 'Desprende odor', value: 'desprende odor' },
-  ];
 
-  const dataBooleanoRadio = [
+  const dataCargaCiega = [
+    { label: 'Sí', value: true },
+    { label: 'No', value: false },
+  ];
+  const dataHayDesperdicio = [
     { label: 'Sí', value: true },
     { label: 'No', value: false },
   ];
   const dataTipoCarga = [
-    { label: 'Perecedero', value: 'perecedero' },
-    { label: 'No Perecedero', value: 'no perecedero' },
-    { label: 'No Comestible', value: 'no comestible' },
+    { label: 'Perecedero', value: 'Perecedero' },
+    { label: 'No Perecedero', value: 'No Perecedero' },
+    { label: 'No Comestible', value: 'No Comestible' },
   ];
+
+
+
+
+  async function saveRecord(formData) {
+    const { fecha,
+      conductor,
+      donante,
+      cargaCiega,
+      tipoCarga,
+      donativo,
+      cantidadCarga,
+      hayDesperdicio,
+      porcentajeDesperdicio,
+      razonDesperdicio,
+      uriFoto } = formData;
+    try {
+      const docRef = await addDoc(collection(db, "donativo"), {
+        fecha,
+        conductor,
+        donante,
+        cargaCiega,
+        tipoCarga,
+        donativo,
+        cantidadCarga,
+        hayDesperdicio,
+        porcentajeDesperdicio,
+        razonDesperdicio,
+        uriFoto
+      });
+      console.log("document saved correctly", docRef.id);
+    } catch (e) {
+      console.log(e);
+    }
+  }
 
   const onSubmit = async (data) => {
     // Indicar que el uri de la imagen en el state es el 
@@ -92,9 +164,12 @@ export default function App() {
         console.log(v)
       );
       console.log(uploadResp);
+      saveRecord(data);
     } catch (e) {
       Alert.alert("Error" + e.message);
     }
+
+
   };
   const allowOnlyNumber = (value) => {
     return value.replace(/[^0-9]/g, '');
@@ -106,7 +181,7 @@ export default function App() {
   if (permission?.status !== ImagePicker.PermissionStatus.GRANTED) {
     return (
       <View >
-        <Text>Permission Not Granted - {permission?.status}</Text>
+        <Text>Permiso de la cámara no está habilitado</Text>
         <StatusBar style="auto" />
         <Button title="Solicitar permiso" onPress={requestPermission}></Button>
       </View>
@@ -166,7 +241,7 @@ export default function App() {
               name={'conductor'}
               render={({ field: { value, onChange, onBlur } }) => (
                 <DropdownComponent
-                  data={dataConductor}
+                  data={conductores}
                   placeholder='Conductor'
                   secureTextEntry
                   val={value}
@@ -184,7 +259,7 @@ export default function App() {
               name={'donante'}
               render={({ field: { value, onChange, onBlur } }) => (
                 <DropdownComponent
-                  data={dataDonante}
+                  data={donantes}
                   placeholder='Donante'
                   secureTextEntry
                   val={value}
@@ -202,7 +277,7 @@ export default function App() {
               name={'cargaCiega'}
               render={({ field: { value, onChange, onBlur } }) => (
                 <Radio
-                  data={dataBooleanoRadio}
+                  data={dataCargaCiega}
                   value={value}
                   onChange={onChange}
                   onBlur={onBlur}
@@ -233,7 +308,7 @@ export default function App() {
               name={'donativo'}
               render={({ field: { value, onChange, onBlur } }) => (
                 <DropdownComponent
-                  data={dataDonativo}
+                  data={donativos}
                   placeholder='Donativo'
                   secureTextEntry
                   val={value}
@@ -252,7 +327,7 @@ export default function App() {
                 <TextInput
                   placeholder='Cantidad carga'
                   value={value}
-                  onChangeText={(text) => onChange(allowOnlyNumber(text))}
+                  onChangeText={(text) => onChange((text))}
                   onBlur={onBlur}
                   style={{ paddingBottom: 100 }}
                 />
@@ -266,7 +341,7 @@ export default function App() {
               name={'hayDesperdicio'}
               render={({ field: { value, onChange, onBlur } }) => (
                 <Radio
-                  data={dataBooleanoRadio}
+                  data={dataHayDesperdicio}
                   value={value}
                   onChange={onChange}
                   onBlur={onBlur}
@@ -299,7 +374,7 @@ export default function App() {
               name={'razonDesperdicio'}
               render={({ field: { value, onChange, onBlur } }) => (
                 <DropdownComponent
-                  data={dataRazonDesperdicio}
+                  data={razonesDesperdicio}
                   placeholder='Razón Desperdicio'
                   secureTextEntry
                   val={value}
@@ -315,8 +390,17 @@ export default function App() {
             setFileName={setFileName}
           />
 
+          {imageUri &&
+            <View>
+              <Text>La fotografía se ha subido</Text>
+              <FontAwesome name="image" size={24} color="#B1B0B0" />
+              <Image source={{ uri: imageUri }} style={{ height: 50, width: 50 }} />
+            </View>
+          }
+
         </KeyboardAvoidingView>
       </ScrollView>
     </SafeAreaView >
   );
 }
+
